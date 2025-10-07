@@ -1,5 +1,9 @@
+import fs from "fs";
+
 import web from "./web.js";
 import wss from "./wss.js";
 
-const webApp = web();
-const wssApp = wss();
+let config = JSON.parse(fs.readFileSync("config.json"));
+
+const webApp = web(config.ports.web);
+const wssApp = wss(config.ports.wss);

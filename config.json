@@ -1,0 +1,12 @@
+{
+    "ports": {
+        "web": 3000,
+        "wss": 3001
+    },
+    "urls": {
+        "ws": "ws://localhost:3001",
+        "webrtc": [
+            ["turn:turn.thered.sh", "https://turn.thered.sh/cred"]
+        ]
+    }
+}

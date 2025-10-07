@@ -1,0 +1,112 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;700&display=swap");
+
+:root {
+    color-scheme: dark;
+}
+
+* {
+    margin: 0 auto;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #111;
+    color: #fff;
+    font-family: "IBM Plex Sans";
+    text-align: left;
+}
+
+.btn {
+    font-size: 16px;
+    padding: 12px 24px;
+    border: none;
+    outline: none;
+    border-radius: 8px;
+    background-color: #333;
+    border: 1px solid #444;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: "IBM Plex Sans";
+    margin: 8px;
+}
+
+.btn:hover {
+    background-color: #444;
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn:focus {
+    outline: 2px solid #666;
+    outline-offset: 2px;
+}
+
+.btncontainer {
+    display: flex;
+}
+
+.btncontainer > * {
+    margin: 5px;
+}
+
+h3 {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 24px 0;
+}
+h3::before,
+h3::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background-color: #444;
+    min-width: 50px;
+    opacity: 0.8;
+}
+
+input {
+    font-size: 16px;
+    padding: 12px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background-color: #222;
+    color: #fff;
+    font-family: "IBM Plex Sans";
+    margin: 8px;
+    width: 100%;
+    max-width: 400px;
+}
+
+input:focus {
+    outline: none;
+    border-color: #666;
+    box-shadow: 0 0 0 2px rgba(102, 102, 102, 0.3);
+}
+
+input::placeholder {
+    color: #666;
+}
+
+input[type="submit"],
+input[type="button"] {
+    background-color: #333;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+input[type="submit"]:hover,
+input[type="button"]:hover {
+    background-color: #444;
+    transform: translateY(-1px);
+}
+
+input[type="submit"]:active,
+input[type="button"]:active {
+    transform: translateY(1px);
+}

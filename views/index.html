@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Paradigm</title>
+	<link rel="stylesheet" href="/styles.css" />
+	<link rel="icon" type="image/x-icon" href="/favicon.png">
+    <meta name="description" content="Share your screen with others in real-time using Paradigm Screenshare" />
+    <meta property="og:title" content="Paradigm Screenshare" />
+    <meta property="og:description" content="Share your screen with others in real-time" />
+    <meta property="og:image" content="/favicon.png" />
+    <meta property="og:url" content="https://ss.thered.sh/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Paradigm Screenshare" />
+    <meta name="twitter:description" content="Share your screen with others in real-time" />
+    <meta name="twitter:image" content="/favicon.png" />
+    <meta name="theme-color" content="#5c5cff" />
+    <meta name="color-scheme" content="dark" />
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        .header-content {
+            display: flex;
+            width: fit-content;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-content > img {
+            display: inline-block;
+            height: 64px;
+        }
+        .header-content > h1 {
+            display: inline-block;
+        }
+        .header {
+            display: block;
+            width: 100vw;
+            padding: 20px;
+            background: linear-gradient(to bottom, #7c5cff80, #7c5cff00);
+        }
+        .share {
+            margin-top: 40px;
+            font-size: 2em;
+            text-align: center;
+        }
+        .client-code {
+            margin-top: 40px;
+            font-size: 2em;
+            text-align: center;
+        }
+        .client-code > h1 {
+            font-family: "IBM Plex Mono";
+        }
+        .content {
+            display: flex;
+            flex-direction: row;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <img src="/favicon.png" alt="Paradigm icon">
+            <h1>Paradigm</h1>
+        </div>
+    </div>
+    <div class="content">
+        <div class="share">
+            <h4>Share your screen:</h4>
+        </div>
+        <div class="client-code">
+            <h4>Client code:</h4>
+            <h1 id="field-client-code">XXXXXX</h1>
+            <button class="btn" id="show-code-button">Show Code</button>
+            <script>
+                const codeElement = document.getElementById('field-client-code');
+                const showCodeButton = document.getElementById('show-code-button');
+
+                showCodeButton.addEventListener('click', () => {
+                    codeElement.style.display = 'block';
+                    showCodeButton.style.display = 'none';
+                });
+
+                codeElement.style.display = 'none';
+            </script>
+            <h3>OR</h3>
+            <h6>Join screenshare directly:</h6>
+            <input type="text" name="id" id="join-screenshare-code" placeholder="Enter screenshare code" required>
+            <button class="btn" onclick="joinScreenshare()">Join screenshare</button>
+        </div>
+    </div>
+</body>
+</html>
