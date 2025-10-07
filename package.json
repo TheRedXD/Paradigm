@@ -1,0 +1,13 @@
+{
+    "name": "paradigm",
+    "version": "1.0.0",
+    "main": "index.js",
+    "repository": "https://github.com/TheRedXD/Paradigm.git",
+    "author": "TheRedXD <redprogamingtv@gmail.com>",
+    "license": "MIT",
+    "type": "module",
+    "dependencies": {
+        "express": "^5.1.0",
+        "ws": "^8.18.3"
+    }
+}
