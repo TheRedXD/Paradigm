@@ -202,7 +202,23 @@ function handleClient(server, client) {
                         break;
                     case "peer":
                         if (server.storage.getEntry("peers")[data.code] !== undefined) {
+                            client.storage.setEntry("preferredName", `Peer (Nonce ${server.storage.getEntry("peers")[data.code].storage.getEntry("peerCode")})`);
+                            client.storage.setEntry("peerCode", server.storage.getEntry("peers")[data.code]);
+                            server.storage.getEntry("peers")[data.code].storage.setEntry("peerCode", server.storage.getEntry("peers")[data.code].storage.getEntry("peerCode") + 1);
 
+                            server.storage.getEntry("peers")[data.code].head.send(JSON.stringify({
+                                type: "peer_connect",
+                                code: client.storage.getEntry("peerCode"),
+                            }));
+
+                            server.storage.getEntry("peers")[data.code].peers.forEach(p => {
+                                p.send(JSON.stringify({
+                                    type: "peer_connect",
+                                    code: client.storage.getEntry("peerCode"),
+                                }));
+                            });
+
+                            server.storage.getEntry("peers")[data.code].peers.push(client);
                         }
                         break;
                 }
