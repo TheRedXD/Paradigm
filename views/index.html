@@ -59,7 +59,7 @@
             flex-direction: row;
         }
     </style>
-    <script src="/script.js" type="module"></script>
+    <script src="/script.js"></script>
 </head>
 <body>
     <div class="header">
@@ -83,6 +83,7 @@
                 showCodeButton.addEventListener('click', () => {
                     codeElement.style.display = 'block';
                     showCodeButton.style.display = 'none';
+                    document.getElementById("field-client-code").innerText = (getClientCode() + "");
                 });
 
                 codeElement.style.display = 'none';

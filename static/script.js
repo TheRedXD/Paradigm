@@ -1,11 +1,30 @@
-let wsUrl = await (await fetch("/api/server")).text();
+let wsUrl = "";
 
-let client = new WebSocket(wsUrl);
+let client = null;
+
+async function init() {
+    wsUrl = await (await fetch("/api/server")).text();
+    client = new WebSocket(wsUrl);
+}
+
+let clientCode = null;
+
+let streamingConfiguration = {
+    fps: 30,
+    microphone: false,
+    forceAV1: false,
+}
+
+function getClientCode() {
+    return clientCode;
+}
 
 function handleMessage(message) {
     if (typeof message.type !== "string") return;
     switch (message.type) {
-        case "":
+        case "client_code":
+            var cc = message.clientCode;
+            clientCode = cc;
             break;
         default:
             break;
@@ -35,4 +54,7 @@ function establishListeners() {
     }
 }
 
-establishListeners();
+(async () => {
+    await init();
+    establishListeners();
+})();
