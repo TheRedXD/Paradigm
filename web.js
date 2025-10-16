@@ -27,6 +27,9 @@ export default function web(port = 3000, urls = {}) {
     app.get("/api/server", (_, res) => {
         res.send(urls.ws);
     });
+    app.get("/api/webrtc", (_, res) => {
+        res.send(JSON.stringify(urls.webrtc));
+    });
     app.listen(port, _ => webLogger.log(`Listening on port ${port}`));
     return app;
 }

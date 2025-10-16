@@ -32,12 +32,20 @@ function handleMessage(message) {
 }
 
 function establishListeners() {
+    streamEmitter.on("cancel", () => {
+        console.log("Stream was cancelled");
+    });
+    streamEmitter.on("end", () => {
+        console.log("Stream ended");
+    });
+
     client.onopen = () => {
         console.log(`Opened websocket at ${wsUrl}`);
     }
 
     client.onclose = () => {
         console.log(`Closed websocket`);
+        streamEmitter.emit("end");
     }
 
     client.onmessage = event => {
