@@ -138,9 +138,9 @@ function randomDigits(num) {
  */
 function handleClient(server, client) {
     client.getClient().on("message", (data) => {
+        console.log(data.toString());
         // Validation
         {
-            if (typeof data !== "string") return;
             let valid = true;
             try {
                 JSON.parse(data);
@@ -148,11 +148,13 @@ function handleClient(server, client) {
                 valid = false;
             }
             if (!valid) return;
-            if (typeof data.type !== "string") return;
+            if (typeof JSON.parse(data).type !== "string") return;
         }
+        data = JSON.parse(data);
 
         switch (data.type) {
             case "join":
+                console.log("this packet actually gets sent");
                 // Data validation
                 if (typeof data.code !== "number") return;
                 if (typeof data.intent !== "string") return;
@@ -199,6 +201,7 @@ function handleClient(server, client) {
                             peerCode: 0,
                             peers: [],
                         };
+                        console.log("head thing");
                         break;
                     case "peer":
                         if (server.storage.getEntry("peers")[data.code] !== undefined) {
@@ -226,6 +229,7 @@ function handleClient(server, client) {
                     client.ws,
                     ...client.storage.getEntriesArr("code", "intent"),
                 );
+                console.log("yuh")
                 break;
             case "leave":
                 if (!client.storage.getEntry("initiated")) break;

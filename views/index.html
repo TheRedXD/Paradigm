@@ -61,6 +61,7 @@
         #localVideo, #remoteVideo {
             background-color: #333;
             width: 100%;
+            max-width: 500px;
             height: auto;
         }
     </style>
@@ -97,9 +98,21 @@
                 code = null;
             }
             if (typeof code != "number") return;
+            let fps = null;
+            try {
+                fps = parseInt(document.getElementById("fps").value);
+            } catch(e) {
+                fps = null;
+            }
+            if (typeof fps != "number") return;
+            propFPS = fps;
             if (client === null) return;
             showNotification("Attempting to start screenshare...");
-            beginScreenshare({}, code, client);
+            beginScreenshare({
+                fps: propFPS,
+                microphone: propMicrophone,
+                forceAV1: propForceAV1,
+            }, code, client);
         }
 
         function autoJoinScreenshare() {
@@ -117,6 +130,28 @@
             if (client === null) return;
             showNotification("Attempting to join screenshare...");
             joinScreenshare(code, client);
+        }
+
+        function setCodecsState(state) {
+            if (state) {
+                document.getElementsByClassName("codecsoff")[0].style = "display: none;";
+                document.getElementsByClassName("codecson")[0].style = "display: inline-block;";
+            } else {
+                document.getElementsByClassName("codecsoff")[0].style = "display: inline-block;";
+                document.getElementsByClassName("codecson")[0].style = "display: none;";
+            }
+            propForceAV1 = state;
+        }
+
+        function setMicrophoneState(state) {
+            if (state) {
+                document.getElementsByClassName("micoff")[0].style = "display: none;";
+                document.getElementsByClassName("micon")[0].style = "display: inline-block;";
+            } else {
+                document.getElementsByClassName("micoff")[0].style = "display: inline-block;";
+                document.getElementsByClassName("micon")[0].style = "display: none;";
+            }
+            propMicrophone = state;
         }
     </script>
     <style>
@@ -204,9 +239,34 @@
             <button class="btn" onclick="autoJoinScreenshare()">Join screenshare</button>
         </div>
     </div>
+    <div style="display: flex; flex-direction: column;">
+        <div id="your-screen" style="display: none;">
+            <h3>Your Screen</h3>
+            <video id="localVideo" autoplay muted controls></video>
+        </div>
+        <div id="remote-screen" style="display: none;">
+            <h3>Remote Screen</h3>
+            <video id="remoteVideo" autoplay controls></video>
+        </div>
+    </div>
 
     <script>
         document.getElementById("screenshare-code").innerText = autogenerateCode()+"";
+
+        streamEmitter.on("localVideo", media => {
+            console.log("stream emitter funnies");
+            document.getElementById("localVideo").srcObject = media;
+            document.getElementById("your-screen").style = "";
+        });
+
+        streamEmitter.on("end", () => {
+            document.getElementById("your-screen").style = "display: none;";
+            document.getElementById("remote-screen").style = "display: none;";
+        });
+
+        streamEmitter.on("notification", text => {
+            showNotification(text);
+        });
     </script>
 </body>
 </html>

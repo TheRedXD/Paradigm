@@ -39,6 +39,7 @@ export function packetConnect(socket, code, intent) {
             intent
         }),
     );
+    console.log("this got called", socket, code, intent);
 }
 /**
  * @param {ws.WebSocket} socket

@@ -63,6 +63,7 @@ async function beginScreenshare(streamingConfiguration = {}, code, conn) {
         code: code,
         intent: "head",
     }));
+    console.log("pass");
 
     streamEmitter.once("cancel", () => {
         streamEmitter.emit("end");

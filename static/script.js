@@ -15,10 +15,17 @@ function getClientCode() {
 
 function handleMessage(message) {
     if (typeof message.type !== "string") return;
+    console.log(message.type);
     switch (message.type) {
         case "client_code":
             var cc = message.clientCode;
             clientCode = cc;
+            break;
+        case "connect":
+            streamEmitter.emit("connect");
+            break;
+        case "err":
+            streamEmitter.emit("notification", message.data.err_text);
             break;
         default:
             break;
@@ -45,6 +52,7 @@ function establishListeners() {
     client.onmessage = event => {
         let data = event.data;
         let message = null;
+        console.log(data);
         try {
             message = JSON.parse(data);
         } catch (e) {
