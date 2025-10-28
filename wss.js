@@ -424,6 +424,12 @@ export default function wss(port = 3001) {
 
     server.init();
 
+    // I think if i'm not stupid it's probably a working server, so I think we need to work on client
+   // E
+   // the code is just a bit cleaner for the server, the actual functionality iirc is the same
+   // On the plus side I get to make it so that it actually shows a loading thing instead of just freezing for a few seconds
+   //
+   // I just shared the old codebase, you can use it as reference
     server
         .getServer()
         .on("listening", (_) => server.logger.log(`Listening on port ${port}`));

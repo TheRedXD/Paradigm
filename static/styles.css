@@ -110,3 +110,63 @@ input[type="submit"]:active,
 input[type="button"]:active {
     transform: translateY(1px);
 }
+
+
+video {
+    background-color: black!important;
+}
+
+.micbutton > svg {
+    display: inline-block;
+    margin-right: 5px;
+    width: 16px;
+    height: 16px;
+    color: white;
+    fill: white;
+}
+
+.micoff > svg {
+    color: #ff5c5c;
+    fill: #ff5c5c;
+}
+
+.codecsbutton {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.micbutton > * {
+    display: inline-block;
+}
+.codecsbutton > * {
+    display: inline-block;
+}
+
+.codecsbutton > svg {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    color: #8cffac;
+    fill: #8cffac;
+}
+
+.codecsoff > svg {
+    color: #ff5c5c;
+    fill: #ff5c5c;
+}
+
+.micbutton {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+.codecsbutton {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}

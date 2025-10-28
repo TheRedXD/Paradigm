@@ -9,12 +9,6 @@ async function init() {
 
 let clientCode = null;
 
-let streamingConfiguration = {
-    fps: 30,
-    microphone: false,
-    forceAV1: false,
-}
-
 function getClientCode() {
     return clientCode;
 }

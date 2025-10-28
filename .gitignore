@@ -1,1 +1,5 @@
+# Project files we don't want to share
 node_modules/
+
+# Collaboration-related
+talk.txt
