@@ -109,6 +109,116 @@ async function beginScreenshare(streamingConfiguration = {}, code, conn) {
             streamEmitter.emit("end");
         });
     });
+
+    streamEmitter.on("data", async data => {
+        if (ready) {
+            let peerCode = data.peerCode;
+            if (!peerConnections.has(peerCode)) {
+                let peerConnection = new RTCPeerConnection(webrtc_configuration);
+                let videoTrack = media.getVideoTracks()[0];
+                let videoTransceiver = peerConnection.addTransceiver(
+                    videoTrack,
+                    {
+                        direction: "sendonly",
+                        streams: [media]
+                    }
+                );
+                let audioTrack = null;
+                let audioTransceiver = null;
+                if (streamingConfiguration.microphone) {
+                    audioTrack = media2.getTracks()[0];
+                    audioTransceiver = peerConnection.addTransceiver(
+                        audioTrack,
+                        {
+                            direction: "sendonly",
+                            streams: [media2]
+                        }
+                    )
+                }
+                if (streamingConfiguration.forceAV1) {
+                    let codecs = RTCRtpSender.getCapabilities("video").codecs;
+                    let av1Codecs = codecs.filter(c => c.mimeType.includes("AV1"));
+                    let vp9Codecs = codecs.filter(c => c.mimeType.includes("VP9"));
+                    if (av1Codecs.length) {
+                        videoTransceiver.setCodecPreferences(av1Codecs);
+                    } else if (vp9Codecs.length) {
+                        videoTransceiver.setCodecPreferences(vp9Codecs);
+                    } else {
+                        videoTransceiver.setCodecPreferences(codecs);
+                    }
+                }
+                peerConnection.addEventListener("icecandidate", (event) => {
+                    if (event.candidate) {
+                        console.log("New ICE candidate:", event.candidate);
+                        conn.send(JSON.stringify({
+                            type: "send",
+                            code: peerCode,
+                            data: {
+                                new_ice_candidate: event.candidate,
+                            },
+                        }));
+                    }
+                });
+                // Debugging
+                {
+                    peerConnection.addEventListener("connectionstatechange", () => {
+                        if (peerConnection.connectionState == "connected") {
+                            console.log("connected to peer", peerCode);
+                        }
+                    });
+                    peerConnection.addEventListener(
+                        "icecandidateerror",
+                        (event) => {
+                            console.log("err", event.errorText);
+                        },
+                    );
+                    peerConnection.addEventListener(
+                        "icegatheringstatechange",
+                        (event) => {
+                            console.log("state", event);
+                        },
+                    );
+                    peerConnection.addEventListener(
+                        "signalingstatechange",
+                        (event) => {
+                            console.log("sigstatechange", event);
+                        },
+                    );
+                }
+
+                peerConnections.set(peerCode, peerConnection);
+            }
+
+            /**
+             * @type {RTCPeerConnection}
+             */
+            let peerConnection = peerConnections.get(peerCode);
+            let msg = data.data;
+
+            if (msg.ready) {
+                let offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                conn.send(JSON.stringify({
+                    type: "send",
+                    code: peerCode,
+                    data: {
+                        offer: offer
+                    }
+                }));
+            }
+            if (msg.answer) {
+                let remoteDescription = new RTCSessionDescription(msg.answer);
+                await peerConnection.setRemoteDescription(remoteDescription);
+            }
+            if (msg.new_ice_candidate) {
+                try {
+                    await peerConnection.addIceCandidate(msg.new_ice_candidate);
+                } catch(e) {
+                    console.log("Error adding received ICE candidate", e);
+                }
+            }
+        }
+    });
 }
 
 /**
@@ -124,4 +234,90 @@ async function joinScreenshare(code, conn) {
         iceTransportPolicy: "relay"
     };
 
+    let peerConnection = new RTCPeerConnection(webrtc_configuration);
+    peerConnection.ontrack = (event) => {
+        let stream = event.streams[0];
+        let audioTrack = event.track.kind === "audio" ? event.track : null;
+        if (audioTrack) {
+            streamEmitter.emit("remoteVideo", audioTrack);
+        } else {
+            streamEmitter.emit("remoteVideo", stream);
+        }
+    }
+    peerConnection.addEventListener("connectionstatechange", (event) => {
+        if (peerConnection.connectionState === "connected") {
+            console.log("connected");
+        }
+        if (peerConnection.connectionState == "disconnected") {
+            streamEmitter.emit("endRemote");
+        }
+    });
+    peerConnection.addEventListener("icecandidate", (event) => {
+        if (event.candidate) {
+            console.log("New ICE candidate:", event.candidate);
+            conn.send(JSON.stringify({
+                type: "send",
+                data: {
+                    new_ice_candidate: event.candidate,
+                },
+            }));
+        }
+    });
+
+    peerConnection.addEventListener("icecandidateerror", (event) => {
+        console.log("err", event.errorText);
+    });
+    peerConnection.addEventListener("icegatheringstatechange", (event) => {
+        console.log("state", event);
+    });
+    peerConnection.addEventListener("signalingstatechange", (event) => {
+        console.log("sigstatechange", event);
+    });
+
+    conn.send(JSON.stringify({
+        type: "join",
+        code: code,
+        intent: "peer",
+    }));
+
+    let ready = false;
+    streamEmitter.once("cancel", () => {
+        streamEmitter.emit("end");
+    });
+    streamEmitter.once("end", () => {
+        join_stats.joinedScreenshare = false;
+        join_stats.waitingForScreenshare = false;
+        peerConnection.close();
+        peerConnection = null;
+    });
+    streamEmitter.once("connect", () => {
+        ready = true;
+        conn.send(JSON.stringify({
+            type: "send",
+            data: {
+                ready: true
+            }
+        }));
+    });
+    streamEmitter.on("data", async data => {
+        if (ready) {
+            let msg = data.data;
+            if (msg.offer) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(msg.offer));
+                let answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                conn.send(JSON.stringify({
+                    type: "send",
+                    data: { answer }
+                }));
+            }
+            if (msg.new_ice_candidate) {
+                try {
+                    await peerConnection.addIceCandidate(msg.new_ice_candidate);
+                } catch(e) {
+                    console.log("Error adding received ICE candidate", e);
+                }
+            }
+        }
+    });
 }

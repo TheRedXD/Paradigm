@@ -205,17 +205,17 @@ function handleClient(server, client) {
                         break;
                     case "peer":
                         if (server.storage.getEntry("peers")[data.code] !== undefined) {
-                            client.storage.setEntry("preferredName", `Peer (Nonce ${server.storage.getEntry("peers")[data.code].storage.getEntry("peerCode")})`);
-                            client.storage.setEntry("peerCode", server.storage.getEntry("peers")[data.code]);
-                            server.storage.getEntry("peers")[data.code].storage.setEntry("peerCode", server.storage.getEntry("peers")[data.code].storage.getEntry("peerCode") + 1);
+                            client.storage.setEntry("preferredName", `Peer (Nonce ${server.storage.getEntry("peers")[data.code].peerCode})`);
+                            client.storage.setEntry("peerCode", server.storage.getEntry("peers")[data.code].peerCode);
+                            server.storage.getEntry("peers")[data.code].peerCode = server.storage.getEntry("peers")[data.code].peerCode + 1;
 
-                            server.storage.getEntry("peers")[data.code].head.send(JSON.stringify({
+                            server.storage.getEntry("peers")[data.code].head.getClient().send(JSON.stringify({
                                 type: "peer_connect",
                                 code: client.storage.getEntry("peerCode"),
                             }));
 
                             server.storage.getEntry("peers")[data.code].peers.forEach(p => {
-                                p.send(JSON.stringify({
+                                p.getClient().send(JSON.stringify({
                                     type: "peer_connect",
                                     code: client.storage.getEntry("peerCode"),
                                 }));
@@ -264,13 +264,13 @@ function handleClient(server, client) {
                             client.storage.getEntry("code")
                         ].peers.filter(p => p !== client);
 
-                        server.storage.getEntry("peers")[client.storage.getEntry("code")].head.send(JSON.stringify({
+                        server.storage.getEntry("peers")[client.storage.getEntry("code")].head.getClient().send(JSON.stringify({
                             type: "peer_disconnect",
                             code: client.storage.getEntry("peerCode"),
                         }));
 
                         server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.forEach(p => {
-                            p.send(JSON.stringify({
+                            p.getClient().send(JSON.stringify({
                                 type: "peer_disconnect",
                                 code: client.storage.getEntry("peerCode"),
                             }));
@@ -289,7 +289,7 @@ function handleClient(server, client) {
                 if (data.data === undefined) break;
                 switch (client.storage.getEntry("intent")) {
                     case "peer":
-                        server.storage.getEntry("peers")[client.storage.getEntry("code")].head.send(JSON.stringify({
+                        server.storage.getEntry("peers")[client.storage.getEntry("code")].head.getClient().send(JSON.stringify({
                             type: "data",
                             ...client.storage.getEntries("code", "peerCode", "intent"),
                             data: data.data,
@@ -298,7 +298,7 @@ function handleClient(server, client) {
                     case "head":
                         if (typeof data.code !== "number") {
                             server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.forEach(p => {
-                                p.send(
+                                p.getClient().send(
                                     JSON.stringify({
                                         type: "data",
                                         ...client.storage.getEntries("code", "intent"),
@@ -309,7 +309,7 @@ function handleClient(server, client) {
                         } else {
                             server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.forEach(p => {
                                 if (p.peerCode == data.code) {
-                                    p.send(
+                                    p.getClient().send(
                                         JSON.stringify({
                                             type: "data",
                                             ...client.storage.getEntries("code", "intent"),
@@ -386,10 +386,10 @@ function handleClient(server, client) {
             switch (client.storage.getEntry("intent")) {
                 case "head":
                     peers[client.storage.getEntry("code")].peers.forEach(peer => {
-                        peer.storage.setEntry("initiated") = false;
-                        peer.storage.setEntry("code") = null;
-                        peer.storage.setEntry("intent") = null;
-                        peer.storage.setEntry("peerCode") = null;
+                        peer.storage.setEntry("initiated", false);
+                        peer.storage.setEntry("code", null);
+                        peer.storage.setEntry("intent", null);
+                        peer.storage.setEntry("peerCode", null);
                         peer.json({
                             type: "disconnect",
                             code: client.storage.getEntry("code"),
@@ -406,12 +406,12 @@ function handleClient(server, client) {
                         peers[client.storage.getEntry("code")].peers = peers[client.storage.getEntry("code")].peers.filter(
                             (p) => p !== client,
                         );
-                        peers[client.storage.getEntry("code")].head.json({
+                        peers[client.storage.getEntry("code")].head.getClient().send(JSON.stringify({
                             type: "peer_disconnect",
                             code: client.storage.getEntry("peerCode"),
-                        });
+                        }));
                         peers[client.storage.getEntry("code")].peers.forEach(peer => {
-                            peer.send(JSON.stringify({
+                            peer.getClient().send(JSON.stringify({
                                 type: "peer_disconnect",
                                 code: client.storage.getEntry("peerCode"),
                             }));
@@ -428,12 +428,6 @@ export default function wss(port = 3001) {
 
     server.init();
 
-    // I think if i'm not stupid it's probably a working server, so I think we need to work on client
-   // E
-   // the code is just a bit cleaner for the server, the actual functionality iirc is the same
-   // On the plus side I get to make it so that it actually shows a loading thing instead of just freezing for a few seconds
-   //
-   // I just shared the old codebase, you can use it as reference
     server
         .getServer()
         .on("listening", (_) => server.logger.log(`Listening on port ${port}`));

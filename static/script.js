@@ -27,6 +27,9 @@ function handleMessage(message) {
         case "err":
             streamEmitter.emit("notification", message.data.err_text);
             break;
+        case "data":
+            streamEmitter.emit("data", message);
+            break;
         default:
             break;
     }

@@ -259,8 +259,42 @@
             document.getElementById("your-screen").style = "";
         });
 
+        streamEmitter.on("remoteVideo", object => {
+            console.log("stream emitter funnies 2");
+            if (!document.getElementById("remoteVideo").srcObject) {
+                document.getElementById("remoteVideo").srcObject = object;
+                document.getElementById("remote-screen").style = "";
+            } else {
+                document.getElementById("remoteVideo").srcObject.addTrack(object);
+            }
+        });
+
         streamEmitter.on("end", () => {
             document.getElementById("your-screen").style = "display: none;";
+            document.getElementById("remote-screen").style = "display: none;";
+            let remoteVideo = document.getElementById("remoteVideo");
+            let localVideo = document.getElementById("localVideo");
+            let remoteStream = remoteVideo.srcObject;
+            let localStream = localVideo.srcObject;
+            if (remoteStream) {
+                let tracks = remoteStream.getTracks();
+                tracks.forEach(track => track.stop());
+                remoteVideo.srcObject = null;
+            }
+            if (localStream) {
+                let tracks = localStream.getTracks();
+                tracks.forEach(track => track.stop());
+                localVideo.srcObject = null;
+            }
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+        });
+
+        streamEmitter.on("endLocal", () => {
+            document.getElementById("your-screen").style = "display: none;";
+        });
+        streamEmitter.on("endRemote", () => {
             document.getElementById("remote-screen").style = "display: none;";
         });
 
