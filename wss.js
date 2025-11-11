@@ -285,8 +285,14 @@ function handleClient(server, client) {
                 });
                 break;
             case "send":
-                if (!client.storage.getEntry("initiated")) break;
-                if (data.data === undefined) break;
+                if (!client.storage.getEntry("initiated")) {
+                    console.log("Not initiated");
+                    break;
+                }
+                if (data.data === undefined) {
+                    console.log("!!!\ndata undefined\n!!!");
+                    break;
+                }
                 switch (client.storage.getEntry("intent")) {
                     case "peer":
                         server.storage.getEntry("peers")[client.storage.getEntry("code")].head.getClient().send(JSON.stringify({
@@ -296,6 +302,7 @@ function handleClient(server, client) {
                         }));
                         break;
                     case "head":
+                        console.log("received send with intent head");
                         if (typeof data.code !== "number") {
                             server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.forEach(p => {
                                 p.getClient().send(
@@ -320,6 +327,9 @@ function handleClient(server, client) {
                                 }
                             });
                         }
+                        break;
+                    default:
+                        console.log("\n\n\nCOULDN'T FIND INTENT\n\n\n");
                         break;
                 }
                 break;
@@ -390,14 +400,14 @@ function handleClient(server, client) {
                         peer.storage.setEntry("code", null);
                         peer.storage.setEntry("intent", null);
                         peer.storage.setEntry("peerCode", null);
-                        peer.json({
+                        peer.getClient().send(JSON.stringify({
                             type: "disconnect",
                             code: client.storage.getEntry("code"),
                             reason: {
                                 reason_type: "host_disconnect",
                                 reason_text: "The host has ended the session.",
                             },
-                        });
+                        }));
                     });
                     delete peers[client.storage.getEntry("code")];
                     break;

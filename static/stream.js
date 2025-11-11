@@ -53,6 +53,7 @@ async function beginScreenshare(streamingConfiguration = {}, code, conn) {
         iceServers: iceServers,
         iceTransportPolicy: "relay"
     };
+    console.log(webrtc_configuration);
     let peerConnections = new Map();
     let media = null;
     let media2 = null;
@@ -194,10 +195,12 @@ async function beginScreenshare(streamingConfiguration = {}, code, conn) {
              */
             let peerConnection = peerConnections.get(peerCode);
             let msg = data.data;
+            console.log("data", msg);
 
             if (msg.ready) {
                 let offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
+                console.log("sending offer");
                 conn.send(JSON.stringify({
                     type: "send",
                     code: peerCode,
@@ -207,12 +210,14 @@ async function beginScreenshare(streamingConfiguration = {}, code, conn) {
                 }));
             }
             if (msg.answer) {
+                console.log("got answer");
                 let remoteDescription = new RTCSessionDescription(msg.answer);
                 await peerConnection.setRemoteDescription(remoteDescription);
             }
             if (msg.new_ice_candidate) {
                 try {
                     await peerConnection.addIceCandidate(msg.new_ice_candidate);
+                    console.log("added ice candidate");
                 } catch(e) {
                     console.log("Error adding received ICE candidate", e);
                 }
@@ -238,6 +243,8 @@ async function joinScreenshare(code, conn) {
     peerConnection.ontrack = (event) => {
         let stream = event.streams[0];
         let audioTrack = event.track.kind === "audio" ? event.track : null;
+
+        console.log("emitting");
         if (audioTrack) {
             streamEmitter.emit("remoteVideo", audioTrack);
         } else {
@@ -291,6 +298,7 @@ async function joinScreenshare(code, conn) {
         peerConnection = null;
     });
     streamEmitter.once("connect", () => {
+        console.log("connect response");
         ready = true;
         conn.send(JSON.stringify({
             type: "send",
@@ -300,20 +308,23 @@ async function joinScreenshare(code, conn) {
         }));
     });
     streamEmitter.on("data", async data => {
+        console.log("received data");
         if (ready) {
             let msg = data.data;
             if (msg.offer) {
-                peerConnection.setRemoteDescription(new RTCSessionDescription(msg.offer));
+                console.log("received offer");
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.offer));
                 let answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
                 conn.send(JSON.stringify({
                     type: "send",
-                    data: { answer }
+                    data: { answer: answer }
                 }));
             }
             if (msg.new_ice_candidate) {
                 try {
                     await peerConnection.addIceCandidate(msg.new_ice_candidate);
+                    console.log("added ice candidate");
                 } catch(e) {
                     console.log("Error adding received ICE candidate", e);
                 }
