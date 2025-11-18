@@ -124,7 +124,7 @@
                 }
                 if (typeof fps != "number") return;
                 propFPS = fps;
-                localStorage.setItem("fps", propFPS);
+                localStorage.setItem("fps", fps);
                 if (client === null) return;
                 showNotification("Attempting to start screenshare...");
                 beginScreenshare(
@@ -447,6 +447,7 @@
 
             document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById("fps").value = propFPS;
+                localStorage.setItem("fps", propFPS);
 
                 if (propForceAV1) {
                     document.getElementsByClassName("codecsoff")[0].style =
