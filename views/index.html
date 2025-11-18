@@ -71,6 +71,27 @@
         let propMicrophone = false;
         let propFPS = 30;
 
+        if (localStorage.getItem("propForceAV1") !== null) {
+            propForceAV1 = localStorage.getItem("propForceAV1") === "true";
+        }
+        if (localStorage.getItem("propMicrophone") !== null) {
+            propMicrophone = localStorage.getItem("propMicrophone") === "true";
+        }
+        if (localStorage.getItem("propFPS") !== null) {
+            propFPS = parseInt(localStorage.getItem("propFPS"));
+        }
+        function saveSettings() {
+            localStorage.setItem("propForceAV1", propForceAV1);
+            localStorage.setItem("propMicrophone", propMicrophone);
+            localStorage.setItem("propFPS", propFPS);
+        }
+        function updateSettings() {
+            document.getElementById("fps").value = propFPS;
+            setCodecsState(propForceAV1);
+            setMicrophoneState(propMicrophone);
+        }
+        updateSettings();
+
         function autogenerateCode() {
             return Math.floor(Math.random() * 100000);
         }
@@ -289,10 +310,12 @@
             if (document.fullscreenElement) {
                 document.exitFullscreen();
             }
+            window.location.reload();
         });
 
         streamEmitter.on("endLocal", () => {
             document.getElementById("your-screen").style = "display: none;";
+            window.location.reload();
         });
         streamEmitter.on("endRemote", () => {
             document.getElementById("remote-screen").style = "display: none;";
