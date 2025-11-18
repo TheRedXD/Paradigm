@@ -79,6 +79,7 @@ class Client {
     constructor(ws) {
         this.ws = ws;
         this.storage = new SimpleStorage();
+        this.json = (o) => this.ws.send(JSON.stringify(o));
     }
     getClient() {
         return this.ws;
@@ -110,15 +111,17 @@ class Server {
         this.wss = wss;
         this.logger = new Logger("wss");
         this.storage = new SimpleStorage();
+        this.peers = {};
+        this.clientsByClientCode = {};
     }
     getServer() {
         return this.wss;
     }
     init() {
-        this.storage.setEntries({
-            peers: {},
-            clientsByClientCode: {},
-        });
+        // this.storage.setEntries({
+        //     peers: {},
+        //     clientsByClientCode: {},
+        // });
     }
 }
 
@@ -137,189 +140,172 @@ function randomDigits(num) {
  * @param {Logger} wssLogger
  */
 function handleClient(server, client) {
-    client.getClient().on("message", (data) => {
-        console.log(data.toString());
-        // Validation
-        {
-            let valid = true;
-            try {
-                JSON.parse(data);
-            } catch (e) {
-                valid = false;
-            }
-            if (!valid) return;
-            if (typeof JSON.parse(data).type !== "string") return;
-        }
-        data = JSON.parse(data);
-
+    client.getClient().on("message", (raw) => {
+        let data = null;
+        try {
+            data = JSON.parse(raw.toString());
+        } catch (e) {}
+        if (data === null) return;
+        if (typeof data.type !== "string") return;
         switch (data.type) {
             case "join":
-                console.log("this packet actually gets sent");
-                // Data validation
                 if (typeof data.code !== "number") return;
                 if (typeof data.intent !== "string") return;
-                if (!["head", "peer"].includes(data.intent)) {
-                    packets.packetErr(
-                        client.ws,
-                        packets.errors.InvalidIntent,
-                        "The intent provided is invalid! If you're a regular user, this is an application error, and should be reported to the developers!",
-                    );
-                    return;
-                }
                 if (data.code < 0) return;
                 if (!Number.isInteger(data.code)) return;
-
                 if (client.storage.getEntry("initiated")) return;
+                if (server.peers[data.code] !== undefined && data.intent !== "peer") {
+                    client.json({
+                        type: "err",
+                        data: {
+                            err_type: "code_already_in_use",
+                            err_text:
+                                "The peering code is already in use! Refresh the page and try again.",
+                        },
+                    });
+                    return;
+                }
+                if (data.intent !== "head" && data.intent !== "peer") {
+                    client.json({
+                        type: "err",
+                        data: {
+                            err_type: "invalid_intent",
+                            err_text:
+                                "The intent provided is invalid! If you're a regular user, and see this, report to developers.",
+                        },
+                    });
+                    return;
+                }
+                if (data.intent === "peer" && server.peers[data.code] === undefined) {
+                    client.json({
+                        type: "err",
+                        data: {
+                            err_type: "unknown_session",
+                            err_text: "The selected session does not exist.",
+                        },
+                    });
+                    client.getClient().close();
+                    return;
+                }
+                client.storage.setEntry("initiated", true);
+                client.storage.setEntry("code", data.code);
+                client.storage.setEntry("intent", data.intent);
+                if (data.intent === "head") {
+                    client.storage.setEntry("preferredName", "Host");
+                    server.peers[data.code] = {
+                        head: client,
+                        peerCode: 0,
+                        peers: [],
+                    };
+                } else if (
+                    data.intent === "peer" &&
+                    server.peers[data.code] !== undefined
+                ) {
+                    client.storage.setEntry("preferredName", `Peer (Nonce ${server.peers[data.code].peerCode})`);
+                    client.storage.setEntry("peerCode", server.peers[data.code].peerCode);
+                    server.peers[data.code].peerCode = server.peers[data.code].peerCode + 1;
 
-                if (server.storage.getEntry("peers")[data.code] !== undefined && data.intent !== "peer") {
-                    packets.packetErr(
-                        client.ws,
-                        packets.errors.CodeAlreadyInUse,
-                        "The peering code is already in use! Refresh the page and try again.",
-                    );
-                    return;
+                    server.peers[data.code].head.json({
+                        type: "peer_connect",
+                        code: client.storage.getEntry("peerCode"),
+                    });
+                    server.peers[data.code].peers.forEach((peer) => {
+                        peer.json({
+                            type: "peer_connect",
+                            code: client.storage.getEntry("peerCode"),
+                        });
+                    });
+
+                    server.peers[data.code].peers.push(client);
                 }
-                if (data.intent === "peer" && server.storage.getEntry("peers")[data.code] === undefined) {
-                    packets.packetErr(
-                        client.ws,
-                        packets.errors.UnknownSession,
-                        "The selected session does not exist.",
-                    );
-                    client.ws.close();
-                    return;
-                }
-                client.storage.setEntries({
-                    initiated: true,
-                    code: data.code,
-                    intent: data.intent,
+                client.json({
+                    type: "connect",
+                    code: client.storage.getEntry("code"),
+                    intent: client.storage.getEntry("intent"),
                 });
-                switch (client.storage.getEntry("intent")) {
-                    case "head":
-                        client.storage.setEntry("preferredName", "Host");
-                        server.storage.getEntry("peers")[data.code] = {
-                            head: client,
-                            peerCode: 0,
-                            peers: [],
-                        };
-                        console.log("head thing");
-                        break;
-                    case "peer":
-                        if (server.storage.getEntry("peers")[data.code] !== undefined) {
-                            client.storage.setEntry("preferredName", `Peer (Nonce ${server.storage.getEntry("peers")[data.code].peerCode})`);
-                            client.storage.setEntry("peerCode", server.storage.getEntry("peers")[data.code].peerCode);
-                            server.storage.getEntry("peers")[data.code].peerCode = server.storage.getEntry("peers")[data.code].peerCode + 1;
-
-                            server.storage.getEntry("peers")[data.code].head.getClient().send(JSON.stringify({
-                                type: "peer_connect",
-                                code: client.storage.getEntry("peerCode"),
-                            }));
-
-                            server.storage.getEntry("peers")[data.code].peers.forEach(p => {
-                                p.getClient().send(JSON.stringify({
-                                    type: "peer_connect",
-                                    code: client.storage.getEntry("peerCode"),
-                                }));
-                            });
-
-                            server.storage.getEntry("peers")[data.code].peers.push(client);
-                        }
-                        break;
-                }
-                packets.packetConnect(
-                    client.ws,
-                    ...client.storage.getEntriesArr("code", "intent"),
-                );
-                console.log("yuh")
                 break;
             case "leave":
-                if (!client.storage.getEntry("initiated")) break;
-                packets.packetDisconnect(
-                    client.ws,
-                    client.storage.getEntry("code"),
-                    packets.errors.SelfDisconnect,
-                    "The client ended the connection.",
-                );
-                switch (client.storage.getEntry("intent")) {
-                    case "head":
-                        server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.forEach(peer => {
-                            peer.storage.setEntries({
-                                initiated: false,
-                                code: null,
-                                intent: null,
-                                peerCode: null,
+                if (client.storage.getEntry("initiated")) {
+                    client.json({
+                        type: "disconnect",
+                        code: client.storage.getEntry("code"),
+                        reason: {
+                            reason_type: "self_disconnect",
+                            reason_text: "The client ended the connection.",
+                        },
+                    });
+                    if (client.storage.getEntry("intent") === "head") {
+                        server.peers[client.storage.getEntry("code")].peers.forEach((peer) => {
+                            peer.storage.setEntry("initiated", false);
+                            peer.storage.setEntry("code", null);
+                            peer.storage.setEntry("intent", null);
+                            peer.storage.setEntry("peerCode", null);
+                            peer.json({
+                                type: "disconnect",
+                                code: client.storage.getEntry("code"),
+                                reason: {
+                                    reason_type: "host_disconnect",
+                                    reason_text:
+                                        "The host has ended the session.",
+                                },
                             });
-                            packets.packetDisconnect(
-                                client.ws,
-                                client.storage.getEntry("code"),
-                                packets.errors.HostDisconnect,
-                                "The host has ended the session.",
-                            );
                         });
-                        delete server.storage.getEntry("peers")[client.storage.getEntry("code")];
-                        break;
-                    case "peer":
-                        if (server.storage.getEntry("peers")[client.storage.getEntry("code")] === undefined) break;
-
-                        server.storage.getEntry("peers")[client.storage.getEntry("code")].peers = server.storage.getEntry("peers")[
-                            client.storage.getEntry("code")
-                        ].peers.filter(p => p !== client);
-
-                        server.storage.getEntry("peers")[client.storage.getEntry("code")].head.getClient().send(JSON.stringify({
-                            type: "peer_disconnect",
-                            code: client.storage.getEntry("peerCode"),
-                        }));
-
-                        server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.forEach(p => {
-                            p.getClient().send(JSON.stringify({
+                        delete server.peers[client.storage.getEntry("code")];
+                    } else if (client.storage.getEntry("intent") === "peer") {
+                        if (server.peers[client.storage.getEntry("code")] !== undefined) {
+                            server.peers[client.storage.getEntry("code")].peers = server.peers[
+                                client.storage.getEntry("code")
+                            ].peers.filter((p) => p !== client);
+                            server.peers[client.storage.getEntry("code")].head.json({
                                 type: "peer_disconnect",
                                 code: client.storage.getEntry("peerCode"),
-                            }));
-                        });
-                        break;
+                            });
+                            server.peers[client.storage.getEntry("code")].peers.forEach((peer) => {
+                                peer.json({
+                                    type: "peer_disconnect",
+                                    code: client.storage.getEntry("peerCode"),
+                                });
+                            });
+                        }
+                    }
+                    client.storage.setEntry("initiated", false);
+                    client.storage.setEntry("code", null);
+                    client.storage.setEntry("intent", null);
+                    client.storage.setEntry("peerCode", null);
                 }
-                client.storage.setEntries({
-                    initiated: false,
-                    code: null,
-                    intent: null,
-                    peerCode: null,
-                });
                 break;
             case "send":
-                if (!client.storage.getEntry("initiated")) {
-                    console.log("Not initiated");
-                    break;
-                }
-                if (data.data === undefined) {
-                    console.log("!!!\ndata undefined\n!!!");
-                    break;
-                }
-                switch (client.storage.getEntry("intent")) {
-                    case "peer":
-                        server.storage.getEntry("peers")[client.storage.getEntry("code")].head.getClient().send(JSON.stringify({
-                            type: "data",
-                            ...client.storage.getEntries("code", "peerCode", "intent"),
-                            data: data.data,
-                        }));
-                        break;
-                    case "head":
-                        console.log("received send with intent head");
+                if (client.storage.getEntry("initiated") && data.data !== undefined) {
+                    if (client.storage.getEntry("intent") == "peer") {
+                        server.peers[client.storage.getEntry("code")].head.getClient().send(
+                            JSON.stringify({
+                                type: "data",
+                                code: client.storage.getEntry("code"),
+                                peerCode: client.storage.getEntry("peerCode"),
+                                intent: client.storage.getEntry("intent"),
+                                data: data.data,
+                            }),
+                        );
+                    } else if (client.storage.getEntry("intent") == "head") {
                         if (typeof data.code !== "number") {
-                            server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.forEach(p => {
-                                p.getClient().send(
+                            server.peers[client.storage.getEntry("code")].peers.forEach((peer) => {
+                                peer.getClient().send(
                                     JSON.stringify({
                                         type: "data",
-                                        ...client.storage.getEntries("code", "intent"),
+                                        code: client.storage.getEntry("code"),
+                                        intent: client.storage.getEntry("intent"),
                                         data: data.data,
                                     }),
                                 );
                             });
                         } else {
-                            server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.forEach(p => {
-                                if (p.peerCode == data.code) {
-                                    p.getClient().send(
+                            server.peers[client.storage.getEntry("code")].peers.forEach((peer) => {
+                                if (peer.storage.getEntry("peerCode") == data.code) {
+                                    peer.getClient().send(
                                         JSON.stringify({
                                             type: "data",
-                                            ...client.storage.getEntries("code", "intent"),
+                                            code: client.storage.getEntry("code"),
+                                            intent: client.storage.getEntry("intent"),
                                             data: data.data,
                                         }),
                                     );
@@ -327,107 +313,106 @@ function handleClient(server, client) {
                                 }
                             });
                         }
-                        break;
-                    default:
-                        console.log("\n\n\nCOULDN'T FIND INTENT\n\n\n");
-                        break;
+                    }
                 }
                 break;
             case "intent":
-                client.ws.send(JSON.stringify({
+                client.json({
                     type: "intent",
                     intent: client.storage.getEntry("intent"),
-                }));
+                });
                 break;
             case "list":
-                if (!client.storage.getEntry("initiated")) break;
-                client.ws.send(JSON.stringify({
-                    type: "list",
-                    peersLength: server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.length,
-                    peers: server.storage.getEntry("peers")[client.storage.getEntry("code")].peers.map(p => p.peerCode),
-                }));
+                if (client.storage.getEntry("initiated")) {
+                    client.json({
+                        type: "list",
+                        peersLength: server.peers[client.storage.getEntry("code")].peers.length,
+                        peers: server.peers[client.storage.getEntry("code")].peers.map((p) => p.storage.getEntry("peerCode")),
+                    });
+                }
                 break;
             case "preferred_name":
-                if (!client.storage.getEntry("initiated")) break;
-                if (typeof data.name == "string") {
-                    client.ws.send(JSON.stringify({
-                        type: "preferred_name",
-                        success: true
-                    }));
-                } else {
-                    client.ws.send(JSON.stringify({
-                        type: "preferred_name",
-                        success: false
-                    }));
+                if (client.storage.getEntry("initiated")) {
+                    if (typeof data.name == "string") {
+                        client.json({
+                            type: "preferred_name",
+                            success: true
+                        });
+                    } else {
+                        client.json({
+                            type: "preferred_name",
+                            success: false
+                        });
+                    }
                 }
                 break;
             case "call":
                 if (typeof data.intent == "string" && data.intent == "head") {
                     if (typeof data.code == "number") {
-                        let targetClient = server.storage.getEntry("clientsByClientCode")[data.code];
+                        let targetClient = server.clientsByClientCode[data.code];
                         if (targetClient !== undefined) {
-                            client.ws.send(JSON.stringify({
+                            client.json({
                                 type: "call_back",
                                 success: true,
                                 clientCode: data.code
-                            }));
-                            targetClient.ws.send(JSON.stringify({
+                            })
+                            targetClient.json({
                                 type: "call",
-                                code: client.code,
-                            }));
+                                code: client.storage.getEntry("clientCode"),
+                            })
                         } else {
-                            client.ws.send(JSON.stringify({
+                             client.json({
                                 type: "call_back",
                                 success: false,
                                 reason: "client_code_invalid"
-                            }));
+                            })
                         }
                     }
                 }
                 break;
-            default:
+            case "chat":
+                if (client.storage.getEntry("initiated")) {
+
+                }
                 break;
         }
     });
 
-    client.ws.on("close", () => {
+    client.getClient().on("close", () => {
         if (client.storage.getEntry("initiated")) {
-            let peers = server.storage.getEntry("peers");
-            switch (client.storage.getEntry("intent")) {
-                case "head":
-                    peers[client.storage.getEntry("code")].peers.forEach(peer => {
-                        peer.storage.setEntry("initiated", false);
-                        peer.storage.setEntry("code", null);
-                        peer.storage.setEntry("intent", null);
-                        peer.storage.setEntry("peerCode", null);
-                        peer.getClient().send(JSON.stringify({
-                            type: "disconnect",
-                            code: client.storage.getEntry("code"),
-                            reason: {
-                                reason_type: "host_disconnect",
-                                reason_text: "The host has ended the session.",
-                            },
-                        }));
+            if (client.storage.getEntry("intent") === "head") {
+                if (!server.peers[client.storage.getEntry("code")]) return;
+                server.peers[client.storage.getEntry("code")].peers.forEach((peer) => {
+                    peer.storage.setEntry("initiated", false);
+                    peer.storage.setEntry("code", null);
+                    peer.storage.setEntry("intent", null);
+                    peer.storage.setEntry("peerCode", null);
+                    peer.json({
+                        type: "disconnect",
+                        code: client.storage.getEntry("code"),
+                        reason: {
+                            reason_type: "host_disconnect",
+                            reason_text: "The host has ended the session.",
+                        },
                     });
-                    delete peers[client.storage.getEntry("code")];
-                    break;
-                case "peer":
-                    if (peers[client.storage.getEntry("code")] !== undefined) {
-                        peers[client.storage.getEntry("code")].peers = peers[client.storage.getEntry("code")].peers.filter(
-                            (p) => p !== client,
-                        );
-                        peers[client.storage.getEntry("code")].head.getClient().send(JSON.stringify({
+                });
+                delete server.peers[client.storage.getEntry("code")];
+            } else if (client.storage.getEntry("intent") === "peer") {
+                if (server.peers[client.storage.getEntry("code")] !== undefined) {
+                    server.peers[client.storage.getEntry("code")].peers = server.peers[client.storage.getEntry("code")].peers.filter(
+                        (p) => p !== client,
+                    );
+                    server.peers[client.storage.getEntry("code")].head.json({
+                        type: "peer_disconnect",
+                        code: client.storage.getEntry("peerCode"),
+                    });
+                    server.peers[client.storage.getEntry("code")].peers.forEach((peer) => {
+                        peer.json({
                             type: "peer_disconnect",
                             code: client.storage.getEntry("peerCode"),
-                        }));
-                        peers[client.storage.getEntry("code")].peers.forEach(peer => {
-                            peer.getClient().send(JSON.stringify({
-                                type: "peer_disconnect",
-                                code: client.storage.getEntry("peerCode"),
-                            }));
                         });
-                    }
-                    break;
+                    });
+                }
             }
         }
     });
@@ -448,14 +433,16 @@ export default function wss(port = 3001) {
         do {
             client.storage.setEntry("clientCode", randomDigits(6));
         } while (
-            server.storage.getEntry("clientsByClientCode")[
+            server.clientsByClientCode[
                 client.storage.getEntry("clientCode")
             ] !== undefined
         );
+        server.clientsByClientCode[client.storage.getEntry("clientCode")] = client;
         client.packetsOnJoin();
         handleClient(server, client);
         client.getClient().on("close", (_) => {
             server.logger.log("Client disconnected");
+            delete server.clientsByClientCode[client.storage.getEntry("clientCode")];
         });
     });
     return server;
