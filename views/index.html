@@ -296,6 +296,7 @@
         });
         streamEmitter.on("endRemote", () => {
             document.getElementById("remote-screen").style = "display: none;";
+            window.location.reload();
         });
 
         streamEmitter.on("notification", text => {

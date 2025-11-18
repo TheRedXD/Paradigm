@@ -24,6 +24,10 @@ export default function web(port = 3000, urls = {}) {
         res.setHeader("Permissions-Policy", 'fullscreen=*');
         res.sendFile(path.join(__dirname, "views/index.html"));
     });
+    app.get("/view", (_req, res) => {
+        res.setHeader("Permissions-Policy", 'fullscreen=*');
+        res.sendFile(path.join(__dirname, "views/view.html"));
+    });
     app.get("/api/server", (_, res) => {
         res.send(urls.ws);
     });

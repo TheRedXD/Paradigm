@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Paradigm - Viewer</title>
+ <link rel="stylesheet" href="/styles.css" />
+ <link rel="icon" type="image/x-icon" href="/favicon.png">
+    <meta name="description" content="View screenshares with Paradigm Screenshare" />
+    <meta property="og:title" content="Paradigm Screenshare - Viewer" />
+    <meta property="og:description" content="View screenshares in real-time" />
+    <meta property="og:image" content="/favicon.png" />
+    <meta property="og:url" content="https://ss.thered.sh/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Paradigm Screenshare - Viewer" />
+    <meta name="twitter:description" content="View screenshares in real-time" />
+    <meta name="twitter:image" content="/favicon.png" />
+    <meta name="theme-color" content="#5c5cff" />
+    <meta name="color-scheme" content="dark" />
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        .header-content {
+            display: flex;
+            width: fit-content;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-content > img {
+            display: inline-block;
+            height: 64px;
+        }
+        .header-content > h1 {
+            display: inline-block;
+        }
+        .header {
+            display: block;
+            width: 100vw;
+            padding: 20px;
+            background: linear-gradient(to bottom, #7c5cff80, #7c5cff00);
+        }
+        .client-code {
+            margin-top: 40px;
+            font-size: 2em;
+            text-align: center;
+        }
+        .client-code > h1 {
+            font-family: "IBM Plex Mono";
+        }
+        .content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #remoteVideo {
+            background-color: #333;
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+        }
+        #remoteVideo.main-content {
+            max-width: 100%;
+            max-height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999;
+        }
+        #remoteVideo::-webkit-media-controls-fullscreen-button {
+            display: none;
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 10000;
+        }
+    </style>
+
+    <script>
+        let notificationCount = 0;
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.style = `bottom: calc(${20 + (notificationCount * 60)}px)`;
+            notification.classList.add('notification');
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            notificationCount++;
+            setTimeout(() => {
+                notification.remove();
+                notificationCount--;
+            }, 5000);
+        }
+
+        function autoJoinScreenshare() {
+            if (join_stats.joinedScreenshare || join_stats.waitingForScreenshare) return;
+            // streamEmitter.emit("end");
+            // let remoteVideo = document.getElementById("remoteVideo");
+            // let remoteStream = remoteVideo.srcObject;
+            // if (remoteStream) {
+            //     let tracks = remoteStream.getTracks();
+            //     tracks.forEach(track => track.stop());
+            //     remoteVideo.srcObject = null;
+            // }
+            // if (document.fullscreenElement) {
+            //     document.exitFullscreen();
+            // }
+            // let closeButton = document.querySelector(".close-button");
+            // if (closeButton) {
+            //     closeButton.remove();
+            // }
+            // streamEmitter.removeAllListeners("data");
+            // streamEmitter.removeAllListeners("connect");
+            let code = null;
+            try {
+                code = parseInt(document.getElementById("join-screenshare-code").value);
+            } catch(e) {
+                code = null;
+            }
+            if (typeof code != "number") return;
+            if (client === null) return;
+            showNotification("Attempting to join screenshare...");
+            joinScreenshare(code, client);
+        }
+
+        function exitFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    </script>
+    <style>
+    .notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #333;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        opacity: 0.9;
+        animation: slideIn 0.5s ease forwards, slideOut 0.5s ease 4.5s forwards;
+        transform: translateY(calc(100% + 20px));
+    }
+    @keyframes slideIn {
+        from {
+            transform: translateY(calc(100% + 20px));
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 0.9;
+        }
+    }
+    @keyframes slideOut {
+        from {
+            transform: translateY(calc(100% + 20px));
+            opacity: 0;
+        }
+        to {
+            transform: translateY(calc(100% + 20px));
+            opacity: 0;
+        }
+    }
+    </style>
+
+    <script src="/eventemitter2.js"></script>
+    <script src="/stream.js"></script>
+    <script src="/script.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <img src="/favicon.png" alt="Paradigm icon">
+            <h1>Paradigm - Viewer</h1>
+        </div>
+    </div>
+    <div class="content">
+        <div class="client-code">
+            <h3>Join a session:</h3>
+            <h4>Client code:</h4>
+            <h1 id="field-client-code">XXXXXX</h1>
+            <button class="btn" id="show-code-button">Show Code</button>
+            <script>
+                const codeElement = document.getElementById('field-client-code');
+                const showCodeButton = document.getElementById('show-code-button');
+
+                showCodeButton.addEventListener('click', () => {
+                    codeElement.style.display = 'block';
+                    showCodeButton.style.display = 'none';
+                    document.getElementById("field-client-code").innerText = (getClientCode() + "");
+                });
+
+                codeElement.style.display = 'none';
+            </script>
+            <h3>OR</h3>
+            <h6>Join screenshare directly:</h6>
+            <input type="text" name="id" id="join-screenshare-code" placeholder="Enter screenshare code" required>
+            <button class="btn" onclick="autoJoinScreenshare()">Join screenshare</button>
+        </div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center;">
+        <div id="remote-screen" style="display: none;">
+            <h3>Remote Screen</h3>
+            <video id="remoteVideo" autoplay controls></video>
+            <button class="btn" onclick="exitFullscreen()">Exit Fullscreen</button>
+        </div>
+    </div>
+
+    <script>
+        let fullScreenEnabled = document.fullscreenEnabled || document.mozFullScreenEnabled || document.webkitFullscreenEnabled;
+        streamEmitter.on("remoteVideo", object => {
+            console.log("stream emitter funnies 2");
+            let video = document.getElementById("remoteVideo");
+            if (!video.srcObject) {
+                video.srcObject = object;
+                let fullscreenAttempted = false;
+                if (fullScreenEnabled) {
+                    if (video.requestFullscreen) {
+                        video.requestFullscreen().then(() => fullscreenAttempted = true).catch(() => fullscreenAttempted = false);
+                    } else if (video.mozRequestFullScreen) { /* Firefox */
+                        video.mozRequestFullScreen();
+                        fullscreenAttempted = true;
+                    } else if (video.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+                        video.webkitRequestFullscreen();
+                        fullscreenAttempted = true;
+                    } else if (video.msRequestFullscreen) { /* IE/Edge */
+                        video.msRequestFullscreen();
+                        fullscreenAttempted = true;
+                    }
+                }
+
+                let closeButton = null;
+                if (!fullScreenEnabled || !fullscreenAttempted) {
+                    document.getElementById("remote-screen").style = "display: block;";
+                    video.classList.add("main-content");
+                    closeButton = document.createElement("button");
+                    closeButton.classList.add("close-button");
+                    closeButton.innerText = "X";
+                    closeButton.style.position = "fixed";
+                    closeButton.style.top = "10px";
+                    closeButton.style.right = "10px";
+                    closeButton.style.fontSize = "2em";
+                    closeButton.onclick = () => {
+                        streamEmitter.emit("endRemote");
+                    };
+                    video.parentNode.insertBefore(closeButton, video);
+                } else {
+                    document.getElementById("remote-screen").style = "";
+                }
+
+            } else {
+                document.getElementById("remoteVideo").srcObject.addTrack(object);
+            }
+        });
+
+        streamEmitter.on("end", () => {
+            let video = document.getElementById("remoteVideo");
+            document.getElementById("remote-screen").style = "display: none;";
+            video.classList.remove("main-content");
+            let remoteVideo = document.getElementById("remoteVideo");
+            let remoteStream = remoteVideo.srcObject;
+            if (remoteStream) {
+                let tracks = remoteStream.getTracks();
+                tracks.forEach(track => track.stop());
+                remoteVideo.srcObject = null;
+            }
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+            let closeButton = document.querySelector(".close-button");
+            if (closeButton) {
+                closeButton.remove();
+            }
+        });
+
+        streamEmitter.on("endRemote", () => {
+            let video = document.getElementById("remoteVideo");
+            document.getElementById("remote-screen").style = "display: none;";
+            video.classList.remove("main-content");
+            let closeButton = document.querySelector(".close-button");
+            if (closeButton) {
+                closeButton.remove();
+            }
+            window.location.reload();
+        });
+
+        streamEmitter.on("notification", text => {
+            showNotification(text);
+        });
+
+        streamEmitter.on("call", code => {
+            document.getElementById("join-screenshare-code").value = code;
+            autoJoinScreenshare();
+        });
+    </script>
+</body>
+</html>
