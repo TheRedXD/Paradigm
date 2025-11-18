@@ -358,7 +358,7 @@ function handleClient(server, client) {
                             })
                             targetClient.json({
                                 type: "call",
-                                code: client.storage.getEntry("clientCode"),
+                                code: client.storage.getEntry("code"),
                             })
                         } else {
                              client.json({

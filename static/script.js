@@ -30,6 +30,9 @@ function handleMessage(message) {
         case "data":
             streamEmitter.emit("data", message);
             break;
+        case "call":
+            streamEmitter.emit("call", message.code);
+            break;
         default:
             break;
     }

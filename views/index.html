@@ -301,6 +301,11 @@
         streamEmitter.on("notification", text => {
             showNotification(text);
         });
+
+        streamEmitter.on("call", code => {
+            document.getElementById("join-screenshare-code").value = code;
+            autoJoinScreenshare();
+        });
     </script>
 </body>
 </html>

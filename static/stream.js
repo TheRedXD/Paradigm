@@ -105,6 +105,17 @@ async function beginScreenshare(streamingConfiguration = {}, code, conn) {
         }
 
         streamEmitter.emit("localVideo", media);
+
+        if (document.getElementById("client-code").value.trim() !== "") {
+            try {
+                conn.send(JSON.stringify({
+                    type: "call",
+                    intent: "head",
+                    code: parseInt(document.getElementById("client-code").value.trim())
+                }));
+            } catch (e) { }
+        }
+
         media.getVideoTracks()[0].addEventListener("ended", () => {
             console.log("closing");
             streamEmitter.emit("end");
