@@ -142,6 +142,18 @@
                 document.msExitFullscreen();
             }
         }
+
+        function enterFullscreen(element) {
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
+        }
     </script>
     <style>
     .notification {
@@ -216,13 +228,24 @@
     <div style="display: flex; flex-direction: column; align-items: center;">
         <div id="remote-screen" style="display: none;">
             <h3>Remote Screen</h3>
-            <video id="remoteVideo" autoplay controls></video>
-            <button class="btn" onclick="exitFullscreen()">Exit Fullscreen</button>
+            <video id="remoteVideo" autoplay controls></video><br>
+            <button class="btn" onclick="toggleFullscreen()">Toggle Fullscreen</button>
         </div>
     </div>
 
     <script>
         let fullScreenEnabled = document.fullscreenEnabled || document.mozFullScreenEnabled || document.webkitFullscreenEnabled;
+
+        function toggleFullscreen() {
+            let video = document.getElementById("remoteVideo");
+            if (!document.fullscreenElement && !document.mozFullScreenElement &&
+                !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                enterFullscreen(video);
+            } else {
+                exitFullscreen();
+            }
+        }
+
         streamEmitter.on("remoteVideo", object => {
             console.log("stream emitter funnies 2");
             let video = document.getElementById("remoteVideo");
@@ -230,18 +253,9 @@
                 video.srcObject = object;
                 let fullscreenAttempted = false;
                 if (fullScreenEnabled) {
-                    if (video.requestFullscreen) {
-                        video.requestFullscreen().then(() => fullscreenAttempted = true).catch(() => fullscreenAttempted = false);
-                    } else if (video.mozRequestFullScreen) { /* Firefox */
-                        video.mozRequestFullScreen();
-                        fullscreenAttempted = true;
-                    } else if (video.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
-                        video.webkitRequestFullscreen();
-                        fullscreenAttempted = true;
-                    } else if (video.msRequestFullscreen) { /* IE/Edge */
-                        video.msRequestFullscreen();
-                        fullscreenAttempted = true;
-                    }
+                    enterFullscreen(video);
+                    fullscreenAttempted = true;
+
                 }
 
                 let closeButton = null;
